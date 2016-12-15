@@ -3,12 +3,27 @@
 # Variaveis globais
 
 G = {}
-naoTerminais = ""
+naoTerminais = []
 terminais = []
 firstVisitado = {}
 followVisitado = {}
 derivaLambda = {}
-simboloVazio = "&"
+simboloVazio = "e"
+simbolosTerminais = [";", ":", ",", "(", ")", "=",
+                     "<", ">", "+", "-", "&", "*",
+                     "/", "identifier",
+                     "ALIASED", "BOX", "CONSTANT",
+                     "IS_ASSIGNED", "IS", "SUBTYPE",
+                     "DIGITS", "NEW", "RANGE", "DOT_DOT",
+                     "TIC", "MOD", "DIGITS", "DELTA",
+                     "ARRAY", "OF", "RECORD", "NULL",
+                     "TAGGED", "ACCESS", "CASE", "WHEN",
+                     "RIGHT_SHAFT", "PIPE", "ALL", "PROCEDURE",
+                     "RETURN", "FUNCTION", "PROTECTED",
+                     "PRAGMA", "PRIVATE", "PACKAGE",
+                     "USE", "BODY", "IS", "END",
+                     "ABSTRACT", "SEPARATE", "WITH",
+                     "TYPE"]
 
 # Funções comun
 
@@ -25,22 +40,31 @@ def EhTerminal(simbolo):
         return False
     if simbolo == "|":
         return False
-    return simbolo.islower()
+    if simbolo in simbolosTerminais:
+        return True
+    return simbolo.isupper()
 
 #Abrindo o arquivo
 
-arquivo = open("gramatica.txt")
+arquivo = open("gramaticaAda.txt")
 
 for linha in arquivo.readlines():
-    naoTerminal = linha[0]
-    naoTerminais += linha[0]
+    naoTerminal = linha.split(":")[0].strip()
+    naoTerminais += [naoTerminal] 
     firstVisitado[naoTerminal] = False
     followVisitado[naoTerminal] = False
     derivaLambda[naoTerminal] = False
     linha = linha.strip('\n')
-    t = filter(EhTerminal, linha[2:])
-    Uniao(terminais, t)
-    G[naoTerminal] = linha[2:].split('|')
+    terminal = filter(EhTerminal, linha.split(":")[1].split(" "))
+    Uniao(terminais, terminal)
+    producoes = []
+    for producao in linha.split(":")[1].split('|'):
+        simbolos = [];
+        for simbolo in producao.split(" "):
+            if simbolo != "":
+                simbolos += [simbolo]
+        producoes += [simbolos]
+    G[naoTerminal] = producoes
 
 arquivo.close()
 
@@ -51,7 +75,7 @@ terminais.append("$")
 
 def SimboloDerivaLambda(producao):
     for simbolo in producao:
-        if simbolo.isupper() and derivaLambda[simbolo]:
+        if simbolo != simboloVazio and not EhTerminal(simbolo) and derivaLambda[simbolo]:
             continue
         else:
             return False
@@ -66,9 +90,9 @@ def AlgumaProducaoDerivaLambda(naoTerminal):
     return False
 
 def FirstInterno(Xb):
-    if Xb == "" or Xb == simboloVazio:
+    if Xb[0] == "" or Xb[0] == simboloVazio:
         return []
-    if Xb[0].islower():
+    if EhTerminal(Xb[0]):
         return [Xb[0]]
     conjunto = []
     if not firstVisitado[Xb[0]]:
@@ -82,10 +106,11 @@ def FirstInterno(Xb):
 # Função First
 def First(a):
     for A in naoTerminais:
-        derivaLambda[A] = simboloVazio in G[A]
-        firstVisitado[A] = False
-    conjunto = FirstInterno(a)
-    if (a != "" and a.isupper() and len(a) == 1) and (derivaLambda[a] or AlgumaProducaoDerivaLambda(a)):
+        for producao in G[A]:    
+            derivaLambda[A] = simboloVazio in producao
+            firstVisitado[A] = False
+    conjunto = FirstInterno([a])
+    if (a != "" and not EhTerminal(a)) and (derivaLambda[a] or AlgumaProducaoDerivaLambda(a)):
         conjunto = Uniao(conjunto, [simboloVazio])
     return conjunto
 
@@ -131,54 +156,54 @@ def Follow(a):
 
 # Visualização
 
-def printTabela(tabela):
-    tamanhoColuna = [max(len(x) for x in col) for col in zip(*tabela)]
-    for linha in tabela:
-        print("| " + " | ".join("{:{}}".format(x, tamanhoColuna[i])
-                                for i, x in enumerate(linha)) + " |")
+##def printTabela(tabela):
+##    tamanhoColuna = [max(len(x) for x in col) for col in zip(*tabela)]
+##    for linha in tabela:
+##        print("| " + " | ".join("{:{}}".format(x, tamanhoColuna[i])
+##                                for i, x in enumerate(linha)) + " |")
+##
+##tabelaFirstAndFollow = [["Nao Terminal", "First", "Follow"]]
+##for naoTerminal in naoTerminais:
+##    tabelaFirstAndFollow.append([naoTerminal, str(First(naoTerminal)), str(Follow(naoTerminal))])
+##
+##printTabela(tabelaFirstAndFollow)
 
-tabelaFirstAndFollow = [["Nao Terminal", "First", "Follow"]]
-for naoTerminal in naoTerminais:
-    tabelaFirstAndFollow.append([naoTerminal, str(First(naoTerminal)), str(Follow(naoTerminal))])
-
-printTabela(tabelaFirstAndFollow)
-
-#Tabela preditiva
-
-TabelaPreditiva = {}
-def inicializarTabelaPreditiva():
-    for naoTerminal in naoTerminais:
-        TabelaPreditiva[naoTerminal] = {}
-        for terminal in terminais:
-            TabelaPreditiva[naoTerminal][terminal] = "ERRO"
-
-def gerarTabelaPreditiva():
-    for nt in G:
-        for p in G[nt]:
-            conjuntoFirst = First(p)
-            conjuntoFollow = Follow(nt)
-            for a in conjuntoFirst:
-                TabelaPreditiva[str(nt)][str(a)] = {str(nt): [p]}
-            if simboloVazio in conjuntoFirst or len(conjuntoFirst) == 0:
-                for b in conjuntoFollow:
-                    TabelaPreditiva[str(nt)][str(b)] = {str(nt): [p]}
-            if (simboloVazio in conjuntoFirst or len(conjuntoFirst) == 0) and "$" in conjuntoFollow:
-                TabelaPreditiva[str(nt)]["$"] = {str(nt): [p]}
-
-def printTabelaPreditiva(tabelaPreditiva):
-    tabela = []
-    cabecalho = ["Nao Terminal"]
-    for terminal in terminais:
-        cabecalho.append(terminal)
-    tabela.append(cabecalho)
-    for naoTerminal in naoTerminais:
-        linha = [naoTerminal]
-        for terminal in terminais:
-            linha.append(str(tabelaPreditiva[naoTerminal][terminal]))
-        tabela.append(linha)
-    printTabela(tabela)
-
-print("\nTabela Preditiva")
-inicializarTabelaPreditiva()
-gerarTabelaPreditiva()
-printTabelaPreditiva(TabelaPreditiva)
+###Tabela preditiva
+##
+##TabelaPreditiva = {}
+##def inicializarTabelaPreditiva():
+##    for naoTerminal in naoTerminais:
+##        TabelaPreditiva[naoTerminal] = {}
+##        for terminal in terminais:
+##            TabelaPreditiva[naoTerminal][terminal] = "ERRO"
+##
+##def gerarTabelaPreditiva():
+##    for nt in G:
+##        for p in G[nt]:
+##            conjuntoFirst = First(p)
+##            conjuntoFollow = Follow(nt)
+##            for a in conjuntoFirst:
+##                TabelaPreditiva[str(nt)][str(a)] = {str(nt): [p]}
+##            if simboloVazio in conjuntoFirst or len(conjuntoFirst) == 0:
+##                for b in conjuntoFollow:
+##                    TabelaPreditiva[str(nt)][str(b)] = {str(nt): [p]}
+##            if (simboloVazio in conjuntoFirst or len(conjuntoFirst) == 0) and "$" in conjuntoFollow:
+##                TabelaPreditiva[str(nt)]["$"] = {str(nt): [p]}
+##
+##def printTabelaPreditiva(tabelaPreditiva):
+##    tabela = []
+##    cabecalho = ["Nao Terminal"]
+##    for terminal in terminais:
+##        cabecalho.append(terminal)
+##    tabela.append(cabecalho)
+##    for naoTerminal in naoTerminais:
+##        linha = [naoTerminal]
+##        for terminal in terminais:
+##            linha.append(str(tabelaPreditiva[naoTerminal][terminal]))
+##        tabela.append(linha)
+##    printTabela(tabela)
+##
+##print("\nTabela Preditiva")
+##inicializarTabelaPreditiva()
+##gerarTabelaPreditiva()
+##printTabelaPreditiva(TabelaPreditiva)
