@@ -121,7 +121,7 @@ parenthesized_primary : aggregate | ( expression )
 qualified : name TIC parenthesized_primary
 allocator : NEW name | NEW qualified
 statement_s : statement statement_s_l
-statement_s_l : statement statement_s_l | &
+statement_s_l : statement statement_s_l | e
 statement : unlabeled | label statement
 unlabeled : simple_stmt | compound_stmt | pragma
 simple_stmt : null_stmt | assign_stmt | exit_stmt | return_stmt | goto_stmt | procedure_call | delay_stmt | abort_stmt | raise_stmt | code_stmt | requeue_stmt | error ;
@@ -131,7 +131,7 @@ null_stmt : NULL ;
 assign_stmt : name IS_ASSIGNED expression ;
 if_stmt : IF cond_clause_s else_opt END IF ;
 cond_clause_s : cond_clause cond_clause_s_l
-cond_clause_s_l : ELSIF cond_clause cond_clause_s_l | &
+cond_clause_s_l : ELSIF cond_clause cond_clause_s_l | e
 cond_clause : cond_part statement_s
 cond_part : condition THEN
 condition : expression
@@ -143,23 +143,127 @@ alternative_s_l : alternative alternative_s_l | e
 alternative : WHEN choice_s RIGHT_SHAFT statement_s
 loop_stmt : label_opt iteration basic_loop id_opt ;
 label_opt : identifier DOT_DOT | e
-use_clause : USE name_s ; USE TYPE name_s ;
-private_opt : PRIVATE | &
-unit : pkg_decl | pkg_body | subprog_decl | subprog_body | subunit | generic_decl | rename_unit
-pkg_decl : pkg_spec ; | generic_pkg_inst ;
-pkg_body : PACKAGE BODY compound_name IS decl_part body_opt END c_id_opt ;
+iteration : WHILE condition | iter_part reverse_opt discrete_range | e
+iter_part : FOR identifier IN
+reverse_opt : REVERSE | e
+basic_loop : LOOP statement_s END LOOP
+id_opt : designator | e
+block : label_opt block_decl block_body END id_opt ;
+block_decl : DECLARE decl_part | e
+block_body : BEGiN handled_stmt_s
+handled_stmt_s : statement_s except_handler_part_opt
+except_handler_part_opt : except_handler_part | e
+exit_stmt : EXIT name_opt when_opt ;
+name_opt : name | e
+when_opt : WHEN condition | e
+return_stmt : RETURN ; | RETURN expression ;
+goto_stmt : GOTO name ;
 subprog_decl : subprog_spec ; | generic_subp_inst ; | subprog_spec_is_push ABSTRACT ;
+subprog_spec : PROCEDURE compound_name formal_part_opt | FUNCTION designator formal_part_opt RETURN name | FUNCTION designator
+designator : compound_name | char_string
+formal_part_opt : formal_part | e
+formal_part : ( param_s )
+param_s : param param_s_l
+param_s_l : ; param param_s_l | e
+param : def_id_s DOT_DOT mode mark init_opt | error
+mode : IN | OUT | IN OUT | ACCESS | e
+subprog_spec_is_push : subprog_spec IS
 subprog_body : subprog_spec_is_push decl_part block_body END id_opt ;
-subunit : SEPARATE ( compound_name ) subunit_body
-generic_decl : generic_formal_part subprog_spec ; | generic_formal_part pkg_spec ;
-rename_unit : PACKAGE compound_name renames ; | subprog_spec renames ; | generic_formal_part PACKAGE compound_name renames ; | generic_formal_part subprog_spec renames ;
-comp_unit : context_spec private_opt unit pragma_s | private_opt unit pragma_s
-compilation : compilation_l | pragma pragma_s compilation_l
-compilation_l : comp_unit compilation_l | &
-use_clause_opt : use_clause_opt_l
-use_clause_opt_l : use_clause use_clause_opt_l &
+procedure_call : name ;
+pkg_decl : pkg_spec ; | generic_pkg_inst ;
+pkg_spec : PACKAGE compound_name IS decl_item_s private_part END c_id_opt
+private_part : PRIVATE decl_item_s | e
+c_id_opt : compound_name | e
+pkg_body : PACKAGE BODY compound_name IS decl_part body_opt END c_id_opt ;
+body_opt : block_body | e
+private_type : tagged_opt limited_opt PRIVATE
+limited_opt : LIMITED | e
+use_clause : USE name_s ; | USE TYPE name_s ;
 name_s : name name_s_l
-name_s_l : , name name_s_l | &
+name_s_l : , name name_s_l | e
+rename_decl : def_id_s DOT_DOT object_qualifier_opt subtype_ind renames ; | def_id_s DOT_DOT EXCEPTION renames ; | rename_unit
+rename_unit : PACKAGE compound_name renames ; | subprog_spec renames ; | generic_formal_part PACKAGE compound_name renames ; | generic_formal_part subprog_spec renames ;
+renames : RENAMES name
+task_decl : task_spec ;
+task_spec : TASK simple_name task_def | TASK TYPE simple_name discrim_part_opt task_def
+task_def : IS entry_decl_s rep_spec_s task_private_opt END id_opt | e
+task_private_opt : PRIVATE entry_decl_s rep_spec_s | e
+task_body : TASK BODY simple_name IS decl_part block_body END id_opt ;
+prot_decl : prot_spec ;
+prot_spec : PROTECTED identifier prot_def | PROTECTED TYPE simple_name discrim_part_opt prot_def
+prot_def : IS prot_op_decl_s prot_private_opt END id_opt
+prot_private_opt : PRIVATE prot_elem_decl_s | e
+prot_op_decl_s : prot_op_decl_s prot_op_decl | e
+prot_op_decl : entry_decl | subprog_spec ; | rep_spec | pragma
+prot_elem_decl_s : prot_elem_decl_s_l | e
+prot_elem_decl_s_l : prot_elem_decl prot_elem_decl_s_l | e
+prot_elem_decl : prot_op_decl | comp_decl
+prot_body : PROTECTED BODY simple_name IS prot_op_body_s END id_opt ;
+prot_op_body_s : pragma_s prot_op_body_s_l
+prot_op_body_s_l : prot_op_body pragma_s prot_op_body_s_l | e
+prot_op_body : entry_body | subprog_body | subprog_spec ;
+entry_decl_s : pragma_s entry_decl_s_l
+entry_decl_s_l : entry_decl pragma_s entry_decl_s_l | e
+entry_decl : ENTRY identifier formal_part_opt ; | ENTRY identifier ( discrete_range ) formal_part_opt ;
+entry_body : ENTRY identifier formal_part_opt WHEN condition entry_body_part | ENTRY identifier ( iter_part discrete_range ) formal_part_opt WHEN condition entry_body_part
+entry_body_part : ; | IS decl_part block_body END id_opt ;
+rep_spec_s : rep_spec_s_l | e
+rep_spec_s_l : rep_spec pragma_s rep_spec_s_l | e
+entry_call : procedure_call
+accept_stmt : accept_hdr ; | accept_hdr DO handled_stmt_s END id_opt ;
+accept_hdr : ACCEPT entry_name formal_part_opt
+entry_name : simple_name | entry_name ( expression )
+delay_stmt : DELAY expression ; | DELAY UNTIL expression ;
+select_stmt : select_wait | async_select | timed_entry_call | cond_entry_call
+select_wait : SELECT guarded_select_alt or_select else_opt END SELECT ;
+guarded_select_alt : select_alt | WHEN condition RIGHT_SHAFT select_alt
+or_select : or_select_l | e
+or_select_l : OR guarded_select_alt or_select_l | e
+select_alt : accept_stmt stmts_opt | delay_stmt stmts_opt | TERMINATE ;
+delay_or_entry_alt : delay_stmt stmts_opt | entry_call stmts_opt
+async_select : SELECT delay_or_entry_alt THEN ABORT statement_s END SELECT ;
+timed_entry_call : SELECT entry_call stmts_opt OR delay_stmt stmts_opt END SELECT ;
+cond_entry_call : SELECT entry_call stmts_opt ELSE statement_s END SELECT ;
+stmts_opt : statement_s | e
+abort_stmt : ABORT name_s ;
+compilation : compilation_l | pragma pragma_s compilation_l
+compilation_l : comp_unit compilation_l | e
+comp_unit : context_spec private_opt unit pragma_s | private_opt unit pragma_s
+private_opt : PRIVATE | e
 context_spec : with_clause use_clause_opt context_spec_l
-context_spec_l : with_clause use_clause_opt context_spec_l | pragma context_spec_l | &
+context_spec_l : with_clause use_clause_opt context_spec_l | pragma context_spec_l | e
 with_clause : WITH c_name_list ;
+use_clause_opt : use_clause_opt_l
+use_clause_opt_l : use_clause use_clause_opt_l e
+unit : pkg_decl | pkg_body | subprog_decl | subprog_body | subunit | generic_decl | rename_unit
+subunit : SEPARATE ( compound_name ) subunit_body
+subunit_body : subprog_body | pkg_body | task_body | prot_body
+body_stub : TASK BODY simple_name IS SEPARATE ; | PACKAGE BODY compound_name IS SEPARATE ; | subprog_spec IS SEPARATE ; | PROTECTED BODY simple_name IS SEPARATE ;
+exception_decl : def_id_s DOT_DOT EXCEPTION ;
+except_handler_part : EXCEPTION exception_handler except_handler_part_l
+except_handler_part_l : exception_handler except_handler_part_l | e
+exception_handler : WHEN except_choice_s RIGHT_SHAFT statement_s | WHEN identifier DOT_DOT except_choice_s RIGHT_SHAFT statement_s
+except_choice_s : except_choice except_choice_s_l
+except_choice_s_l : PIPE except_choice except_choice_s_l | e
+except_choice : name | OTHERS
+raise_stmt : RAISE name_opt ;
+requeue_stmt : REQUEUE name ; | REQUEUE name WITH ABORT ;
+generic_decl : generic_formal_part subprog_spec ; | generic_formal_part pkg_spec ;
+generic_formal_part : GENERIC generic_formal_part_l
+generic_formal_part_l : generic_formal generic_formal_part_l | e
+generic_formal : param ; | TYPE simple_name generic_discrim_part_opt IS generic_type_def ; | WITH PROCEDURE simple_name formal_part_opt subp_default ; | WITH FUNCTION designator formal_part_opt RETURN name subp_default ; | WITH PACKAGE simple_name IS NEW name ( BOX ) ; | WITH PACKAGE simple_name IS NEW name ; | use_clause
+generic_discrim_part_opt : | discrim_part | ( BOX )
+subp_default : IS name | IS BOX | e
+generic_type_def : ( BOX ) | RANGE BOX | MOD BOX | DELTA BOX | DELTA BOX DIGITS BOX | DIGITS BOX | array_type | access_type | private_type | generic_derived_type
+generic_derived_type : NEW subtype_ind | NEW subtype_ind WITH PRIVATE | ABSTRACT NEW subtype_ind WITH PRIVATE
+generic_subp_inst : subprog_spec IS generic_inst
+generic_pkg_inst : PACKAGE compound_name IS generic_inst
+generic_inst : NEW name
+rep_spec : attrib_def | record_type_spec | address_spec
+attrib_def : FOR mark USE expression ;
+record_type_spec : FOR mark USE RECORD align_opt comp_loc_s END RECORD ;
+align_opt : AT MOD expression ; | e
+comp_loc_s : comp_loc_s_l | e
+comp_loc_s_l : mark AT expression RANGE range ; comp_loc_s_l | e
+address_spec : FOR mark USE AT expression ;
+code_stmt : qualified ;
