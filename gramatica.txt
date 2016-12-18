@@ -15,7 +15,7 @@ object_subtype_def : subtype_ind | array_type
 init_opt : IS_ASSIGNED expression | e
 number_decl : def_id_s DOT_DOT CONSTANT IS_ASSIGNED expression ;
 type_decl : TYPE identifier discrim_part_opt type_completion ;
-discrim_part_opt : | discrim_part | ( BOX ) | e
+discrim_part_opt : discrim_part | ( BOX ) | e
 type_completion : IS type_def | e
 type_def : enumeration_type | integer_type | real_type | array_type | record_type | access_type | derived_type | private_type
 subtype_decl : SUBTYPE identifier IS subtype_ind ;
@@ -150,7 +150,7 @@ basic_loop : LOOP statement_s END LOOP
 id_opt : designator | e
 block : label_opt block_decl block_body END id_opt ;
 block_decl : DECLARE decl_part | e
-block_body : BEGiN handled_stmt_s
+block_body : BEGIN handled_stmt_s
 handled_stmt_s : statement_s except_handler_part_opt
 except_handler_part_opt : except_handler_part | e
 exit_stmt : EXIT name_opt when_opt ;
@@ -252,7 +252,7 @@ generic_decl : generic_formal_part subprog_spec ; | generic_formal_part pkg_spec
 generic_formal_part : GENERIC generic_formal_part_l
 generic_formal_part_l : generic_formal generic_formal_part_l | e
 generic_formal : param ; | TYPE simple_name generic_discrim_part_opt IS generic_type_def ; | WITH PROCEDURE simple_name formal_part_opt subp_default ; | WITH FUNCTION designator formal_part_opt RETURN name subp_default ; | WITH PACKAGE simple_name IS NEW name ( BOX ) ; | WITH PACKAGE simple_name IS NEW name ; | use_clause
-generic_discrim_part_opt : | discrim_part | ( BOX )
+generic_discrim_part_opt : discrim_part | ( BOX )
 subp_default : IS name | IS BOX | e
 generic_type_def : ( BOX ) | RANGE BOX | MOD BOX | DELTA BOX | DELTA BOX DIGITS BOX | DIGITS BOX | array_type | access_type | private_type | generic_derived_type
 generic_derived_type : NEW subtype_ind | NEW subtype_ind WITH PRIVATE | ABSTRACT NEW subtype_ind WITH PRIVATE
